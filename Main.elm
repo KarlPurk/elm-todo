@@ -24,6 +24,7 @@ type alias Model =
     { nextId : Int
     , todoName : String
     , todos : List Todo
+    , filter : VisibilityFilter
     }
 
 
@@ -34,9 +35,25 @@ type alias Todo =
     }
 
 
+type VisibilityFilter
+    = All
+    | Active
+    | Complete
+
+
 initModel : Model
 initModel =
-    Model 0 "" []
+    let
+        todos =
+            [ Todo 0 "Learn Elm" False
+            , Todo 1 "Create Elm Todo app" True
+            ]
+
+        nextId =
+            List.length todos
+    in
+        Model nextId "" todos All
+
 
 
 -- update
@@ -47,10 +64,15 @@ type Msg
     | InputTodoName String
     | ToggleTodo Int
     | DeleteTodo Int
+    | Filter VisibilityFilter
+
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
+        Filter filter ->
+            { model | filter = filter }
+
         AddTodo ->
             let
                 todo =
@@ -73,7 +95,7 @@ update msg model =
                 { model | todos = todos }
 
         DeleteTodo todoId ->
-            let 
+            let
                 todos =
                     deleteTodo model.todos todoId
             in
@@ -91,9 +113,12 @@ toggleTodo todos todoId =
         )
         todos
 
+
 deleteTodo : List Todo -> Int -> List Todo
 deleteTodo todos todoId =
     filter (\todo -> todo.id /= todoId) todos
+
+
 
 -- view
 
@@ -103,6 +128,7 @@ view model =
     div []
         [ renderAddTodoForm model
         , renderTodos model
+        , renderFilter model.filter
         , div [] [ text (toString model) ]
         ]
 
@@ -110,10 +136,30 @@ view model =
 renderTodos : Model -> Html Msg
 renderTodos model =
     let
+        filteredTodos =
+            filterTodos model.filter model.todos
+
         output =
-            map renderTodo model.todos
+            map renderTodo filteredTodos
     in
         div [] output
+
+
+filterTodos : VisibilityFilter -> List Todo -> List Todo
+filterTodos filter todos =
+    List.filter
+        (\todo ->
+            case filter of
+                All ->
+                    True
+
+                Complete ->
+                    todo.completed
+
+                Active ->
+                    not todo.completed
+        )
+        todos
 
 
 renderAddTodoForm : Model -> Html Msg
@@ -145,11 +191,45 @@ renderTodo todo =
             [ input
                 [ type' "checkbox"
                 , onClick (ToggleTodo todo.id)
+                , checked todo.completed
                 ]
                 []
             , text todo.title
             , button [ onClick (DeleteTodo todo.id) ] [ text "Delete" ]
             ]
+
+
+renderFilter : VisibilityFilter -> Html Msg
+renderFilter visiblityFilter =
+    div []
+        [ input
+            [ type' "radio"
+            , name "filter"
+            , value "All"
+            , onClick (Filter All)
+            , checked (visiblityFilter == All)
+            ]
+            []
+        , label [] [ text "All" ]
+        , input
+            [ type' "radio"
+            , name "filter"
+            , value "Active"
+            , onClick (Filter Active)
+            , checked (visiblityFilter == Active)
+            ]
+            []
+        , label [] [ text "Active" ]
+        , input
+            [ type' "radio"
+            , name "filter"
+            , value "Complete"
+            , onClick (Filter Complete)
+            , checked (visiblityFilter == Complete)
+            ]
+            []
+        , label [] [ text "Complete" ]
+        ]
 
 
 getStyles : Bool -> List ( String, String )
